@@ -441,6 +441,7 @@ namespace FayeCpp {
 		info.gid = -1;
 		info.uid = -1;
 		info.options = webSocket->isUsingIPV6() ? 0 : LWS_SERVER_OPTION_DISABLE_IPV6;
+		info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;// | LWS_SERVER_OPTION_LIBEV;
 		
 		info.user = static_cast<WebSocket *>(webSocket);
 		
@@ -458,6 +459,7 @@ namespace FayeCpp {
 			info.ssl_ca_filepath = CACertificateFilePath.UTF8String();
 			
 			info.options = (info.options == 0) ? LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT : info.options | LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT;
+			info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 			
 			struct lws_context * context = lws_create_context(&info);
 			
@@ -472,6 +474,34 @@ namespace FayeCpp {
 		return lws_create_context(&info);
 	}
 
+	//NOTE: SHS lws_client_connect is deprected, brought inline
+	struct lws* lws_client_connect_deprecated(struct lws_context* context, const char* address,
+		int port, int ssl_connection, const char* path,
+		const char* host, const char* origin,
+		const char* protocol, int ietf_version_or_minus_one,
+		void* data)
+	{
+		struct lws_client_connect_info i;
+
+		memset(&i, 0, sizeof(i));
+
+		i.context = context;
+		i.address = address;
+		i.port = port;
+		i.ssl_connection = ssl_connection;
+		i.path = path;
+		i.host = host;
+		i.origin = origin;
+		i.protocol = protocol;
+		i.ietf_version_or_minus_one = ietf_version_or_minus_one;
+		i.userdata = NULL;
+		//   i.opaque_user_data = data;
+
+		return lws_client_connect_via_info(&i);
+	}
+
+
+
 	struct lws * WebSocket::createWebSocketConnection(struct lws_context * context)
 	{
 		Client * client = this->client();
@@ -479,15 +509,16 @@ namespace FayeCpp {
 		{
 			FAYECPP_DEBUG_LOGA("Start connecting to host[%s] port[%i] path[%s]", client->host().UTF8String(), client->port(), client->path().UTF8String())
 
-			return lws_client_connect(context,
+			return lws_client_connect_deprecated(context,
 									  client->host().UTF8String(),
 									  client->port(),
-									  client->isUseSSL() ? 2 : 0,
+									  client->isUseSSL() ? (LCCSCF_USE_SSL | LCCSCF_ALLOW_SELFSIGNED | LCCSCF_SKIP_SERVER_CERT_HOSTNAME_CHECK) : 0,
 									  client->path().UTF8String(),
 									  client->host().UTF8String(),
 									  "origin",
 									  NULL,
-									  -1);
+									  -1,
+                                      this);
 		}
 		return NULL;
 	}
