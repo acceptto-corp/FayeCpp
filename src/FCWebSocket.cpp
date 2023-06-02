@@ -49,7 +49,7 @@
 
 namespace FayeCpp {
 
-#if defined(__RE_THREADING_PTHREAD__)			
+#if defined(__RE_THREADING_PTHREAD__)
 	pthread_t * WebSocket::ThreadsJoiner::_thread = NULL;
 #elif defined(__RE_THREADING_WINDOWS__)
 	HANDLE WebSocket::ThreadsJoiner::_thread = NULL;
@@ -58,7 +58,7 @@ namespace FayeCpp {
 
 	void WebSocket::ThreadsJoiner::clean()
 	{
-		if (_thread) 
+		if (_thread)
 		{
 #if defined (__RE_THREADING_PTHREAD__)
 			void * r = NULL;
@@ -77,7 +77,7 @@ namespace FayeCpp {
 		assert(_thread == NULL);
 #endif
 	}
-	
+
 #if defined (__RE_THREADING_PTHREAD__)
 	void WebSocket::ThreadsJoiner::add(pthread_t * t) {
 #elif defined(__RE_THREADING_WINDOWS__)
@@ -91,7 +91,7 @@ namespace FayeCpp {
 		_mutex.unlock();
 	}
 
-	
+
 	struct lws_protocols WebSocket::protocols[] = {
 		{
 			"default",
@@ -102,14 +102,14 @@ namespace FayeCpp {
 			NULL, NULL, 0
 		}
 	};
-	
+
 	void WebSocket::onCallbackReceive(struct lws * wsi, void * input, size_t len)
 	{
 		const size_t bytesLeft = lws_remaining_packet_payload(wsi);
 		if (bytesLeft > 0)
 		{
 			// large fragment
-			if (lws_frame_is_binary(wsi)) 
+			if (lws_frame_is_binary(wsi))
 			{
 				// binary fragment received
 				if (_receivedBinaryBuffer) _receivedBinaryBuffer->append(input, (REUInt32)len);
@@ -122,10 +122,10 @@ namespace FayeCpp {
 				else _receivedTextBuffer = new REBuffer(input, (REUInt32)len);
 			}
 		}
-		
+
 		if (lws_is_final_fragment(wsi))
 		{
-			if (lws_frame_is_binary(wsi)) 
+			if (lws_frame_is_binary(wsi))
 			{
 				// final binary
 				if (_receivedBinaryBuffer)
@@ -153,7 +153,7 @@ namespace FayeCpp {
 			}
 		}
 	}
-	
+
 	int WebSocket::callbackEcho(struct lws * wsi,
 								enum lws_callback_reasons reason,
 								void * user,
@@ -165,31 +165,31 @@ namespace FayeCpp {
 
 		WebSocket * socket = static_cast<WebSocket *>(lws_context_user(context));
 		if (!socket->_isWorking) return 0;
-		
+
 		switch (reason)
 		{
 			case LWS_CALLBACK_CLIENT_ESTABLISHED:
 				socket->onCallbackEstablished();
 				break;
-				
+
 			case LWS_CALLBACK_CLIENT_RECEIVE:
 				if (input && len) socket->onCallbackReceive(wsi, input, len);
 				break;
-				
+
 			case LWS_CALLBACK_CLIENT_WRITEABLE:
 				return socket->onCallbackWritable(wsi, static_cast<EchoSessionData *>(user));
 				break;
-				
+
 			case LWS_CALLBACK_WSI_DESTROY:
 				socket->onCallbackConnectionDestroyed();
 				break;
-				
+
 			default:
 				break;
 		}
 		return 0;
 	}
-	
+
 	void WebSocket::onCallbackConnectionDestroyed()
 	{
 		FAYECPP_DEBUG_LOG("CALLBACK CONNECTION DESTROYED")
@@ -197,10 +197,10 @@ namespace FayeCpp {
 		_mutex.lock();
 		_isWorking = 0;
 		_mutex.unlock();
-		
+
 		this->onDisconnected();
 	}
-	
+
 	void WebSocket::onCallbackEstablished()
 	{
 		FAYECPP_DEBUG_LOG("CALLBACK CONNECTION ESTABLISHED")
@@ -221,16 +221,16 @@ namespace FayeCpp {
 	}
 
 	int WebSocket::onCallbackWritable(struct lws * connection, EchoSessionData * pss)
-	{	
+	{
 		WebSocket::WriteBuffer * buffer = this->takeFirstWriteBuffer();
 		if (!buffer) return 0;
-		
+
 		const enum lws_write_protocol type = (enum lws_write_protocol)buffer->tag;
 		memcpy(&pss->buf[LWS_SEND_BUFFER_PRE_PADDING], buffer->buffer(), buffer->size());
 		pss->len = buffer->size();
-		
+
 		delete buffer;
-		
+
 		const int writed = lws_write(connection, &pss->buf[LWS_SEND_BUFFER_PRE_PADDING], pss->len, type);
 		if (writed < 0)
 		{
@@ -246,18 +246,18 @@ namespace FayeCpp {
 			lws_callback_on_writable(connection);
 			return -1;
 		}
-		
+
 		if (!_writeBuffers.isEmpty())
 		{
 			lws_callback_on_writable(connection);
 		}
-		
+
 		return 0;
 	}
-	
+
 	void WebSocket::addWriteBufferData(const unsigned char * data, const REUInt32 dataSize, const enum lws_write_protocol type)
 	{
-		if (dataSize > MAX_ECHO_PAYLOAD) 
+		if (dataSize > MAX_ECHO_PAYLOAD)
 		{
 			REVariantMap info;
 			info[kErrorPlaceInTheCodeKey] = ERROR_LINE_INFO_STRING;
@@ -267,10 +267,10 @@ namespace FayeCpp {
 			this->onError(Error(kErrorDomainTransport, Error::SendingBufferTooLarge, info));
 			return;
 		}
-		
+
 		bool isError = false;
 		_mutex.lock();
-		
+
 		WebSocket::WriteBuffer * buffer = new WebSocket::WriteBuffer(data, dataSize);
 		if (buffer && buffer->size() == dataSize)
 		{
@@ -281,14 +281,14 @@ namespace FayeCpp {
 			_writeBuffers.add(buffer);
 		}
 		else isError = true;
-		
+
 		if (!isError && this->isConnected())
 		{
 			lws_callback_on_writable(_connection);
 		}
-		
+
 		_mutex.unlock();
-		
+
 		if (isError)
 		{
 			REVariantMap info;
@@ -297,7 +297,7 @@ namespace FayeCpp {
 			this->onError(Error(kErrorDomainTransport, Error::InternalApplicationError, info));
 		}
 	}
-	
+
 	void WebSocket::sendData(const unsigned char * data, const REUInt32 dataSize)
 	{
 		if (data && dataSize > 0)
@@ -305,7 +305,7 @@ namespace FayeCpp {
 			this->addWriteBufferData(data, dataSize, LWS_WRITE_BINARY);
 		}
 	}
-	
+
 	void WebSocket::sendText(const char * text, const REUInt32 textSize)
 	{
 		if (text && textSize > 0)
@@ -314,13 +314,13 @@ namespace FayeCpp {
 			this->addWriteBufferData((const unsigned char *)text, textSize, LWS_WRITE_TEXT);
 		}
 	}
-	
-	const REString WebSocket::name() const 
+
+	const REString WebSocket::name() const
 	{
-		return WebSocket::transportName(); 
+		return WebSocket::transportName();
 	}
-	
-#if defined(__RE_THREADING_PTHREAD__)	
+
+#if defined(__RE_THREADING_PTHREAD__)
 	void * WebSocket::workThreadFunc(void * somePointer)
 	{
 #if defined(RE_HAVE_FUNCTION_PTHREAD_SETNAME_NP) && defined(__APPLE__)
@@ -348,19 +348,19 @@ namespace FayeCpp {
 		return 0;
 	}
 #endif
-	
+
 	bool WebSocket::createWorkThread()
 	{
 #if defined(__RE_THREADING_PTHREAD__)
 		_workThread = (pthread_t *)malloc(sizeof(pthread_t));
 		if (!_workThread) return false;
 		pthread_attr_t attr;
-		if (pthread_attr_init(&attr) == 0) 
+		if (pthread_attr_init(&attr) == 0)
 		{
 			bool res = false;
 			if (pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM) == 0)
 			{
-				if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE) == 0) 
+				if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE) == 0)
 				{
 					memset(_workThread, 0, sizeof(pthread_t));
 					res = (pthread_create(_workThread, &attr, WebSocket::workThreadFunc, static_cast<void *>(this)) == 0);
@@ -369,8 +369,8 @@ namespace FayeCpp {
 					if (res) pthread_setname_np(*_workThread, "FayeCpp WebSocket workThread");
 #elif defined(RE_HAVE_FUNCTION_PTHREAD_SET_NAME_NP)
 					if (res) pthread_set_name_np(*_workThread, "FayeCpp WebSocket workThread");
-#endif				
-#endif	
+#endif
+#endif
 				}
 			}
 			pthread_attr_destroy(&attr);
@@ -383,10 +383,10 @@ namespace FayeCpp {
 			_workThread = hThread;
 			return true;
 		}
-#endif	
+#endif
 		return false;
 	}
-	
+
 	void WebSocket::connectToServer()
 	{
 		if (!this->isConnected())
@@ -394,57 +394,57 @@ namespace FayeCpp {
 			this->createWorkThread();
 		}
 	}
-	
+
 	void WebSocket::cleanup()
 	{
 		_mutex.lock();
-		
+
 		memset(&_info, 0, sizeof(struct lws_context_creation_info));
-		
+
 		if (_context) lws_context_destroy(_context);
 		_context = NULL;
 		_connection = NULL;
-		
+
 		REList<WebSocket::WriteBuffer *>::Iterator i = _writeBuffers.iterator();
-		while (i.next()) 
+		while (i.next())
 		{
 			WebSocket::WriteBuffer * b = i.value();
 			delete b;
 		}
 		_writeBuffers.clear();
-		
+
 		SAFE_DELETE(_receivedTextBuffer)
 		SAFE_DELETE(_receivedBinaryBuffer)
-		
+
 		_mutex.unlock();
 	}
-	
+
 	void WebSocket::disconnectFromServer()
 	{
 		_mutex.lock();
 		_isWorking = 0;
 		_mutex.unlock();
 	}
-	
+
 	struct lws_context * WebSocket::createWebSocketContext(WebSocket * webSocket)
 	{
 		struct lws_context_creation_info info;
 		memset(&info, 0, sizeof(struct lws_context_creation_info));
-		
+
 		info.port = CONTEXT_PORT_NO_LISTEN;
 		info.iface = NULL;
 		info.protocols = WebSocket::protocols;
 #ifndef LWS_NO_EXTENSIONS
 		info.extensions = lws_get_internal_extensions();
 #endif
-		
+
 		info.gid = -1;
 		info.uid = -1;
 		info.options = webSocket->isUsingIPV6() ? 0 : LWS_SERVER_OPTION_DISABLE_IPV6;
 		info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;// | LWS_SERVER_OPTION_LIBEV;
 		
 		info.user = static_cast<WebSocket *>(webSocket);
-		
+
 		SSLDataSource * dataSource = webSocket->sslDataSource();
 		if (dataSource)
 		{
@@ -457,20 +457,20 @@ namespace FayeCpp {
 			info.ssl_private_key_filepath = privateKeyFilePath.UTF8String();
 			info.ssl_private_key_password = privateKeyPassPhrase.UTF8String();
 			info.ssl_ca_filepath = CACertificateFilePath.UTF8String();
-			
+
 			info.options = (info.options == 0) ? LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT : info.options | LWS_SERVER_OPTION_REQUIRE_VALID_OPENSSL_CLIENT_CERT;
 			info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 			
 			struct lws_context * context = lws_create_context(&info);
-			
+
 			info.ssl_cert_filepath = NULL;
 			info.ssl_private_key_filepath = NULL;
 			info.ssl_private_key_password = NULL;
 			info.ssl_ca_filepath = NULL;
-			
+
 			return context;
 		}
-		
+
 		return lws_create_context(&info);
 	}
 
@@ -526,11 +526,11 @@ namespace FayeCpp {
 	void WebSocket::workMethod()
 	{
 		_mutex.lock();
-		
+
 		_isWorking = 0;
-		
+
 		_context = WebSocket::createWebSocketContext(this);
-		
+
 		if (!_context)
 		{
 			_mutex.unlock();
@@ -547,7 +547,7 @@ namespace FayeCpp {
 		{
 			if (_context) lws_context_destroy(_context);
 			_context = NULL;
-			
+
 			_mutex.unlock();
 
 			REVariantMap info;
@@ -559,18 +559,18 @@ namespace FayeCpp {
 			this->onError(Error(kErrorDomainTransport, Error::FailedConnectToHost, info));
 			return;
 		}
-		
+
 		lws_callback_on_writable(_connection);
-		
+
 		_isWorking = 1;
-		
+
 		_mutex.unlock();	/// for initialization
-		
+
 		int n = 0;
 		while (n >= 0 && _isWorking && _context)
 		{
 			_mutex.lock();
-			
+
 			n = _context ? lws_service(_context, 99) : -1;
 
 			_mutex.unlock();
@@ -582,10 +582,10 @@ namespace FayeCpp {
 #endif
 			this->tick();
 		}
-		
+
 		this->cleanup();
 	}
-	
+
 	WebSocket::WebSocket(ClassMethodWrapper<Client, void(Client::*)(Responce*), Responce> * processMethod) : Transport(processMethod),
 #if defined(__RE_THREADING_PTHREAD__) || defined(__RE_THREADING_WINDOWS__)
 		_workThread(NULL),
@@ -597,14 +597,15 @@ namespace FayeCpp {
 		_isWorking(0)
 	{
 		memset(&_info, 0, sizeof(struct lws_context_creation_info));
+		lws_set_log_level(LLL_ERR, nullptr);
 	}
-	
+
 	WebSocket::~WebSocket()
 	{
 		FAYECPP_DEBUG_LOG("DESTRUCTOR ~WebSocket()");
 	}
-	
-	REString WebSocket::transportName() 
+
+	REString WebSocket::transportName()
 	{
 		return REString("websocket");
 	}
