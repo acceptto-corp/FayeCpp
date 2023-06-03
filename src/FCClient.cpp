@@ -306,11 +306,16 @@ namespace FayeCpp {
 	{
 		if (_delegate) 
 		{
-			REVariant * data = message.findTypedValue(_bayeuxDataKey, REVariant::TypeMap);
-			if (data) 
+			REVariant data = message[_bayeuxDataKey];
+			if (!data.isNULL())
 			{
-				_delegate->onFayeClientReceivedMessageFromChannel(this, data->toMap(), channel);
+				_delegate->onFayeClientReceivedMessageFromChannel(this, message, channel);
 			}
+//			REVariant * data = message.findTypedValue(_bayeuxDataKey, REVariant::TypeMap);
+//			if (data)
+//			{
+//				_delegate->onFayeClientReceivedMessageFromChannel(this, data->toMap(), channel);
+//			}
 		}
 	}
 	
